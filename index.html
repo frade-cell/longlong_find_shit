@@ -1,0 +1,1174 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>陈籽龙找屎粑粑</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Microsoft YaHei', 'PingFang SC', sans-serif;
+            overflow: hidden;
+            color: white;
+        }
+
+        h1 {
+            margin: 10px 0;
+            font-size: 28px;
+            text-shadow: 0 0 20px rgba(255, 255, 255, 0.5);
+            background: linear-gradient(90deg, #ff6b6b, #feca57, #48dbfb, #ff9ff3);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        #gameContainer {
+            position: relative;
+            border: 4px solid #4a4a6a;
+            border-radius: 12px;
+            box-shadow: 0 0 40px rgba(0, 0, 0, 0.6);
+            overflow: hidden;
+        }
+
+        canvas {
+            display: block;
+            background: #87CEEB;
+        }
+
+        #ui {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            padding: 12px 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: linear-gradient(to bottom, rgba(0,0,0,0.6), transparent);
+            pointer-events: none;
+            font-size: 18px;
+            font-weight: bold;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+        }
+
+        .ui-group {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        #overlay {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: rgba(0, 0, 0, 0.85);
+            text-align: center;
+            z-index: 10;
+        }
+
+        #overlay h2 {
+            font-size: 42px;
+            margin-bottom: 20px;
+            color: #feca57;
+            text-shadow: 0 0 30px rgba(254, 202, 87, 0.6);
+        }
+
+        #overlay p {
+            font-size: 18px;
+            margin-bottom: 30px;
+            line-height: 1.6;
+            max-width: 500px;
+            color: #ddd;
+        }
+
+        .btn {
+            padding: 14px 36px;
+            font-size: 20px;
+            font-weight: bold;
+            border: none;
+            border-radius: 30px;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            background: linear-gradient(90deg, #ff6b6b, #feca57);
+            color: #1a1a2e;
+            box-shadow: 0 4px 20px rgba(255, 107, 107, 0.4);
+        }
+
+        .btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 6px 30px rgba(255, 107, 107, 0.6);
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        #controls {
+            margin-top: 15px;
+            font-size: 14px;
+            color: #aaa;
+            text-align: center;
+        }
+
+        #controls span {
+            display: inline-block;
+            margin: 0 8px;
+            padding: 4px 10px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 6px;
+        }
+    </style>
+</head>
+<body>
+    <h1>🎮 陈籽龙找屎粑粑 🎮</h1>
+    <div id="gameContainer">
+        <canvas id="gameCanvas" width="960" height="540"></canvas>
+        <div id="ui">
+            <div class="ui-group">
+                <span>❤️ 生命: <span id="lives">3</span></span>
+                <span>💖 血量: <span id="health">100</span>%</span>
+            </div>
+            <div class="ui-group">
+                <span>💩 屎粑粑: <span id="collected">0</span>/<span id="total">0</span></span>
+            </div>
+        </div>
+        <div id="overlay">
+            <h2 id="overlayTitle">陈籽龙找屎粑粑</h2>
+            <p id="overlayText">
+                帮助陈籽龙在复杂的地图中找到所有的屎粑粑！<br>
+                小心陷阱和敌人，收集血包回复生命。<br>
+                陈籽龙有 3 条命，找到所有屎粑粑即可包餐！
+            </p>
+            <button class="btn" id="startBtn">开始游戏</button>
+        </div>
+    </div>
+    <div id="controls">
+        <span>⬅️ ➡️ / A D 移动</span>
+        <span>⬆️ / W / 空格 跳跃</span>
+        <span>R 重新开始</span>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const overlay = document.getElementById('overlay');
+        const overlayTitle = document.getElementById('overlayTitle');
+        const overlayText = document.getElementById('overlayText');
+        const startBtn = document.getElementById('startBtn');
+        const livesEl = document.getElementById('lives');
+        const healthEl = document.getElementById('health');
+        const collectedEl = document.getElementById('collected');
+        const totalEl = document.getElementById('total');
+
+        // 游戏常量
+        const TILE = 40;
+        const GRAVITY = 0.62;
+        const JUMP_FORCE = -20;
+        const MOVE_SPEED = 5.5;
+        const MAX_HEALTH = 100;
+        const INVINCIBLE_TIME = 120; // 帧
+        const KNOCKBACK = 8;
+
+        // 地图尺寸
+        const MAP_WIDTH = 60;
+        const MAP_HEIGHT = 36;
+
+        // 图块类型
+        const TILE_AIR = 0;
+        const TILE_GROUND = 1;
+        const TILE_PLATFORM = 2;
+        const TILE_SPIKE_UP = 3;
+        const TILE_SPIKE_DOWN = 4;
+        const TILE_POOP = 5;
+        const TILE_HEALTH = 6;
+        const TILE_ENEMY_GROUND = 7;
+        const TILE_ENEMY_FLY = 8;
+        const TILE_SAW_PATH = 9;
+        const TILE_START = 10;
+
+        let gameState = 'menu'; // menu, playing, won, lost
+        let keys = {};
+        let camera = { x: 0, y: 0 };
+        let particles = [];
+        let floatTexts = [];
+        let poops = [];
+        let enemies = [];
+        let saws = [];
+        let healthPacks = [];
+        let startPos = { x: 80, y: 200 };
+
+        // 玩家对象
+        const player = {
+            x: 80, y: 200,
+            width: 28, height: 36,
+            vx: 0, vy: 0,
+            facing: 1,
+            onGround: false,
+            health: MAX_HEALTH,
+            lives: 3,
+            invincible: 0,
+            animTimer: 0,
+            color: '#ff6b6b'
+        };
+
+        // 地图数据 (0=空气, 1=地面, 2=平台, 3=尖刺朝上, 4=尖刺朝下, 5=屎粑粑, 6=血包, 7=地面敌人, 8=飞行敌人, 9=电锯路径, 10=起点)
+        let map = [];
+
+        function createMap() {
+            // 初始化全空
+            map = Array(MAP_HEIGHT).fill(null).map(() => Array(MAP_WIDTH).fill(TILE_AIR));
+
+            // 辅助函数：画矩形地面
+            function rect(x, y, w, h, type = TILE_GROUND) {
+                for (let i = y; i < y + h; i++) {
+                    for (let j = x; j < x + w; j++) {
+                        if (i >= 0 && i < MAP_HEIGHT && j >= 0 && j < MAP_WIDTH) {
+                            map[i][j] = type;
+                        }
+                    }
+                }
+            }
+
+            // 辅助函数：画平台（只画边缘一层）
+            function platform(x, y, w) {
+                for (let j = x; j < x + w; j++) {
+                    if (j >= 0 && j < MAP_WIDTH) map[y][j] = TILE_PLATFORM;
+                }
+            }
+
+            // 辅助函数：设置单个图块
+            function set(x, y, type) {
+                if (x >= 0 && x < MAP_WIDTH && y >= 0 && y < MAP_HEIGHT) {
+                    map[y][x] = type;
+                }
+            }
+
+            // ========== 地图设计 ==========
+
+            // 起点区域 (左下)
+            rect(0, 32, 12, 4); // 起始地面
+            set(2, 31, TILE_START);
+            platform(8, 29, 4);
+            platform(12, 26, 3);
+            set(13, 25, TILE_POOP);
+
+            // 左侧塔楼
+            rect(16, 22, 3, 14); // 左塔
+            rect(20, 18, 3, 18); // 中塔
+            rect(24, 14, 3, 22); // 右塔
+
+            // 连接平台
+            platform(15, 28, 3);
+            platform(19, 24, 4);
+            platform(23, 20, 4);
+            platform(19, 16, 4);
+            platform(23, 12, 4);
+            platform(27, 9, 4);
+
+            // 尖刺陷阱
+            platform(18, 31, 2); set(18, 30, TILE_SPIKE_UP); set(19, 30, TILE_SPIKE_UP);
+            platform(22, 27, 2); set(22, 26, TILE_SPIKE_UP); set(23, 26, TILE_SPIKE_UP);
+            platform(26, 23, 2); set(26, 22, TILE_SPIKE_UP); set(27, 22, TILE_SPIKE_UP);
+
+            // 高处屎粑粑
+            set(17, 21, TILE_POOP);
+            set(21, 15, TILE_POOP);
+            set(25, 11, TILE_POOP);
+            set(29, 8, TILE_POOP);
+
+            // 血包
+            set(20, 15, TILE_HEALTH);
+            set(28, 8, TILE_HEALTH);
+
+            // 地下洞穴区域
+            rect(30, 30, 12, 6); // 地下平台
+            rect(32, 26, 8, 4); // 地下上层
+            rect(34, 22, 4, 4); // 地下顶层
+
+            // 地下通道陷阱
+            platform(33, 32, 3);
+            platform(38, 30, 2);
+            platform(34, 26, 3);
+
+            // 地下尖刺
+            set(34, 29, TILE_SPIKE_UP);
+            set(35, 29, TILE_SPIKE_UP);
+            set(36, 29, TILE_SPIKE_UP);
+            set(40, 31, TILE_SPIKE_UP);
+            set(41, 31, TILE_SPIKE_UP);
+
+            // 地下收集品
+            set(36, 21, TILE_POOP);
+            set(38, 25, TILE_POOP);
+            set(33, 31, TILE_HEALTH);
+
+            // 右侧浮岛区域
+            platform(43, 32, 4);
+            platform(47, 29, 4);
+            platform(51, 27, 4);
+            platform(45, 24, 4);
+            platform(49, 21, 4);
+            platform(53, 19, 4);
+            platform(47, 17, 4);
+            platform(51, 15, 4);
+            platform(55, 13, 4);
+            platform(49, 11, 4);
+            platform(53, 9, 4);
+
+            // 浮岛尖刺
+            set(44, 31, TILE_SPIKE_UP);
+            set(45, 31, TILE_SPIKE_UP);
+            set(50, 23, TILE_SPIKE_UP);
+            set(54, 16, TILE_SPIKE_UP);
+
+            // 浮岛收集品
+            set(49, 28, TILE_POOP);
+            set(51, 20, TILE_POOP);
+            set(49, 16, TILE_POOP);
+            set(53, 8, TILE_POOP);
+            set(57, 12, TILE_HEALTH);
+
+            // 顶层区域
+            rect(36, 5, 22, 3); // 顶层长廊
+            rect(36, 0, 2, 5); // 左墙
+            rect(56, 0, 2, 5); // 右墙
+            set(38, 4, TILE_SPIKE_UP);
+            set(43, 4, TILE_SPIKE_UP);
+            set(48, 4, TILE_SPIKE_UP);
+            set(53, 4, TILE_SPIKE_UP);
+            set(41, 4, TILE_POOP);
+            set(46, 4, TILE_POOP);
+            set(51, 4, TILE_POOP);
+
+            // 敌人位置
+            set(9, 31, TILE_ENEMY_GROUND);
+            set(22, 31, TILE_ENEMY_GROUND);
+            set(36, 29, TILE_ENEMY_GROUND);
+            set(45, 31, TILE_ENEMY_GROUND);
+            set(51, 26, TILE_ENEMY_GROUND);
+
+            set(17, 20, TILE_ENEMY_FLY);
+            set(27, 12, TILE_ENEMY_FLY);
+            set(47, 22, TILE_ENEMY_FLY);
+            set(55, 11, TILE_ENEMY_FLY);
+
+            // 电锯路径
+            set(20, 29, TILE_SAW_PATH);
+            set(21, 29, TILE_SAW_PATH);
+            set(25, 25, TILE_SAW_PATH);
+            set(26, 25, TILE_SAW_PATH);
+            set(31, 20, TILE_SAW_PATH);
+            set(32, 20, TILE_SAW_PATH);
+            set(49, 26, TILE_SAW_PATH);
+            set(50, 26, TILE_SAW_PATH);
+
+            // 保证底部和边缘有墙
+            rect(0, 35, MAP_WIDTH, 1);
+            rect(0, 0, MAP_WIDTH, 1);
+            rect(0, 0, 1, MAP_HEIGHT);
+            rect(MAP_WIDTH - 1, 0, 1, MAP_HEIGHT);
+
+            // 将起点恢复为空气（仅标记）
+            set(2, 31, TILE_AIR);
+            startPos = { x: 2 * TILE + 6, y: 31 * TILE - 36 };
+        }
+
+        function initEntities() {
+            poops = [];
+            enemies = [];
+            saws = [];
+            healthPacks = [];
+
+            for (let y = 0; y < MAP_HEIGHT; y++) {
+                for (let x = 0; x < MAP_WIDTH; x++) {
+                    const type = map[y][x];
+                    const px = x * TILE + TILE / 2;
+                    const py = y * TILE + TILE / 2;
+
+                    if (type === TILE_POOP) {
+                        poops.push({ x: px, y: py, radius: 12, collected: false, bobOffset: Math.random() * Math.PI * 2 });
+                    } else if (type === TILE_HEALTH) {
+                        healthPacks.push({ x: px, y: py, radius: 14, collected: false, bobOffset: Math.random() * Math.PI * 2 });
+                    } else if (type === TILE_ENEMY_GROUND) {
+                        enemies.push({
+                            x: px, y: y * TILE + TILE - 18,
+                            width: 28, height: 18,
+                            vx: 1.5, vy: 0,
+                            type: 'ground',
+                            patrolStart: x * TILE,
+                            patrolEnd: x * TILE + TILE * 3,
+                            dir: 1,
+                            animTimer: 0
+                        });
+                    } else if (type === TILE_ENEMY_FLY) {
+                        enemies.push({
+                            x: px, y: py,
+                            width: 24, height: 24,
+                            vx: 2, vy: 0,
+                            type: 'fly',
+                            originX: px, originY: py,
+                            range: 120,
+                            dir: 1,
+                            angle: 0,
+                            animTimer: 0
+                        });
+                    } else if (type === TILE_SAW_PATH) {
+                        // 找到连续的电锯路径
+                        if (x > 0 && map[y][x - 1] === TILE_SAW_PATH) continue;
+                        // 向右找长度
+                        let len = 1;
+                        while (x + len < MAP_WIDTH && map[y][x + len] === TILE_SAW_PATH) len++;
+                        saws.push({
+                            x: px, y: py,
+                            radius: 16,
+                            startX: px,
+                            endX: px + len * TILE - TILE,
+                            speed: 2.5,
+                            dir: 1,
+                            angle: 0
+                        });
+                    }
+                }
+            }
+
+            totalEl.textContent = poops.length;
+        }
+
+        function resetPlayer() {
+            player.x = startPos.x;
+            player.y = startPos.y;
+            player.vx = 0;
+            player.vy = 0;
+            player.health = MAX_HEALTH;
+            player.invincible = 0;
+            player.facing = 1;
+        }
+
+        function startGame() {
+            createMap();
+            initEntities();
+            resetPlayer();
+            player.lives = 3;
+            particles = [];
+            floatTexts = [];
+            gameState = 'playing';
+            overlay.classList.add('hidden');
+            updateUI();
+        }
+
+        function gameOver(won) {
+            gameState = won ? 'won' : 'lost';
+            overlayTitle.textContent = won ? '🎉 通关成功！' : '💀 游戏结束';
+            overlayText.innerHTML = won
+                ? `太棒了！陈籽龙找到了所有的 💩 屎粑粑！<br>剩余生命：${player.lives} 条`
+                : '陈籽龙燃尽了……再试一次吧！';
+            startBtn.textContent = '重新开始';
+            overlay.classList.remove('hidden');
+        }
+
+        function updateUI() {
+            livesEl.textContent = player.lives;
+            healthEl.textContent = Math.max(0, Math.ceil(player.health));
+            collectedEl.textContent = poops.filter(p => p.collected).length;
+        }
+
+        // 输入处理
+        window.addEventListener('keydown', e => {
+            keys[e.code] = true;
+            if (e.code === 'KeyR' && gameState === 'playing') {
+                player.lives--;
+                if (player.lives <= 0) {
+                    gameOver(false);
+                } else {
+                    resetPlayer();
+                    updateUI();
+                }
+            }
+        });
+        window.addEventListener('keyup', e => keys[e.code] = false);
+        startBtn.addEventListener('click', startGame);
+
+        // 碰撞检测
+        function getTilesAround(obj) {
+            const tiles = [];
+            const left = Math.floor(obj.x / TILE);
+            const right = Math.floor((obj.x + obj.width) / TILE);
+            const top = Math.floor(obj.y / TILE);
+            const bottom = Math.floor((obj.y + obj.height) / TILE);
+
+            for (let y = top - 1; y <= bottom + 1; y++) {
+                for (let x = left - 1; x <= right + 1; x++) {
+                    if (x >= 0 && x < MAP_WIDTH && y >= 0 && y < MAP_HEIGHT) {
+                        const type = map[y][x];
+                        if (type === TILE_GROUND || type === TILE_PLATFORM) {
+                            tiles.push({ x: x * TILE, y: y * TILE, type });
+                        }
+                    }
+                }
+            }
+            return tiles;
+        }
+
+        function rectIntersect(a, b) {
+            return a.x < b.x + b.width &&
+                   a.x + a.width > b.x &&
+                   a.y < b.y + b.height &&
+                   a.y + a.height > b.y;
+        }
+
+        function circleRectIntersect(circle, rect) {
+            const closestX = Math.max(rect.x, Math.min(circle.x, rect.x + rect.width));
+            const closestY = Math.max(rect.y, Math.min(circle.y, rect.y + rect.height));
+            const dx = circle.x - closestX;
+            const dy = circle.y - closestY;
+            return dx * dx + dy * dy < circle.radius * circle.radius;
+        }
+
+        // 粒子效果
+        function spawnParticles(x, y, color, count = 8) {
+            for (let i = 0; i < count; i++) {
+                particles.push({
+                    x, y,
+                    vx: (Math.random() - 0.5) * 8,
+                    vy: (Math.random() - 0.5) * 8,
+                    life: 30 + Math.random() * 20,
+                    color,
+                    size: 3 + Math.random() * 4
+                });
+            }
+        }
+
+        function spawnFloatText(x, y, text, color) {
+            floatTexts.push({ x, y, text, color, life: 60, vy: -1 });
+        }
+
+        // 伤害处理
+        function damagePlayer(amount, knockX = 0, knockY = -5) {
+            if (player.invincible > 0) return;
+
+            player.health -= amount;
+            player.invincible = INVINCIBLE_TIME;
+            player.vx = knockX;
+            player.vy = knockY;
+            spawnParticles(player.x + player.width / 2, player.y + player.height / 2, '#ff0000', 12);
+            spawnFloatText(player.x + player.width / 2, player.y, `-${amount}`, '#ff6b6b');
+
+            if (player.health <= 0) {
+                player.lives--;
+                if (player.lives <= 0) {
+                    gameOver(false);
+                } else {
+                    resetPlayer();
+                    spawnFloatText(player.x, player.y - 30, '失去一条命！', '#ff0000');
+                }
+            }
+            updateUI();
+        }
+
+        // 更新玩家
+        function updatePlayer() {
+            if (gameState !== 'playing') return;
+
+            // 左右移动
+            if (keys['ArrowLeft'] || keys['KeyA']) {
+                player.vx -= 0.8;
+                player.facing = -1;
+            }
+            if (keys['ArrowRight'] || keys['KeyD']) {
+                player.vx += 0.8;
+                player.facing = 1;
+            }
+
+            // 摩擦力
+            player.vx *= 0.85;
+            player.vx = Math.max(-MOVE_SPEED, Math.min(MOVE_SPEED, player.vx));
+
+            // 跳跃
+            if ((keys['Space'] || keys['ArrowUp'] || keys['KeyW']) && player.onGround) {
+                player.vy = JUMP_FORCE;
+                player.onGround = false;
+                spawnParticles(player.x + player.width / 2, player.y + player.height, '#fff', 6);
+            }
+
+            // 重力
+            player.vy += GRAVITY;
+            player.vy = Math.min(player.vy, 18);
+
+            // 水平移动 + 碰撞
+            player.x += player.vx;
+            let tiles = getTilesAround(player);
+            for (let tile of tiles) {
+                if (rectIntersect(player, { x: tile.x, y: tile.y, width: TILE, height: TILE })) {
+                    if (player.vx > 0) {
+                        player.x = tile.x - player.width;
+                    } else if (player.vx < 0) {
+                        player.x = tile.x + TILE;
+                    }
+                    player.vx = 0;
+                }
+            }
+
+            // 垂直移动 + 碰撞
+            player.y += player.vy;
+            player.onGround = false;
+            tiles = getTilesAround(player);
+            for (let tile of tiles) {
+                if (rectIntersect(player, { x: tile.x, y: tile.y, width: TILE, height: TILE })) {
+                    if (player.vy > 0) {
+                        player.y = tile.y - player.height;
+                        player.onGround = true;
+                    } else if (player.vy < 0) {
+                        player.y = tile.y + TILE;
+                    }
+                    player.vy = 0;
+                }
+            }
+
+            // 边界
+            if (player.x < 0) player.x = 0;
+            if (player.x + player.width > MAP_WIDTH * TILE) player.x = MAP_WIDTH * TILE - player.width;
+            if (player.y > MAP_HEIGHT * TILE + 100) {
+                // 掉出地图
+                player.lives--;
+                if (player.lives <= 0) {
+                    gameOver(false);
+                } else {
+                    resetPlayer();
+                    spawnFloatText(player.x, player.y - 30, '掉下去了！', '#ff0000');
+                    updateUI();
+                }
+            }
+
+            // 无敌时间
+            if (player.invincible > 0) player.invincible--;
+            player.animTimer++;
+        }
+
+        // 更新敌人
+        function updateEnemies() {
+            for (let enemy of enemies) {
+                enemy.animTimer++;
+
+                if (enemy.type === 'ground') {
+                    enemy.x += enemy.vx * enemy.dir;
+                    if (enemy.x > enemy.patrolEnd || enemy.x < enemy.patrolStart) {
+                        enemy.dir *= -1;
+                    }
+
+                    // 碰到墙转向
+                    const tiles = getTilesAround(enemy);
+                    let hitWall = false;
+                    for (let tile of tiles) {
+                        if (rectIntersect(enemy, { x: tile.x, y: tile.y, width: TILE, height: TILE })) {
+                            hitWall = true;
+                            break;
+                        }
+                    }
+                    if (hitWall) {
+                        enemy.dir *= -1;
+                        enemy.x += enemy.vx * enemy.dir * 2;
+                    }
+                } else if (enemy.type === 'fly') {
+                    enemy.angle += 0.03;
+                    enemy.x = enemy.originX + Math.sin(enemy.angle) * enemy.range;
+                    enemy.y = enemy.originY + Math.cos(enemy.angle * 1.3) * 30;
+                }
+
+                // 与玩家碰撞
+                if (rectIntersect(player, enemy) && player.invincible <= 0) {
+                    const knockDir = player.x + player.width / 2 < enemy.x + enemy.width / 2 ? -1 : 1;
+                    damagePlayer(25, knockDir * KNOCKBACK, -6);
+                }
+            }
+        }
+
+        // 更新电锯
+        function updateSaws() {
+            for (let saw of saws) {
+                saw.angle += 0.15;
+                saw.x += saw.speed * saw.dir;
+                if (saw.x > saw.endX) saw.dir = -1;
+                if (saw.x < saw.startX) saw.dir = 1;
+
+                // 与玩家碰撞
+                const dist = Math.hypot(player.x + player.width / 2 - saw.x, player.y + player.height / 2 - saw.y);
+                if (dist < saw.radius + player.width / 2 && player.invincible <= 0) {
+                    const knockDir = player.x + player.width / 2 < saw.x ? -1 : 1;
+                    damagePlayer(35, knockDir * KNOCKBACK * 1.5, -8);
+                }
+            }
+        }
+
+        // 更新收集品和陷阱
+        function updateCollectiblesAndTraps() {
+            // 屎粑粑
+            for (let poop of poops) {
+                if (poop.collected) continue;
+                poop.bobOffset += 0.05;
+                const dist = Math.hypot(player.x + player.width / 2 - poop.x, player.y + player.height / 2 - poop.y);
+                if (dist < poop.radius + player.width / 2) {
+                    poop.collected = true;
+                    spawnParticles(poop.x, poop.y, '#8B4513', 10);
+                    spawnFloatText(poop.x, poop.y - 20, '+1 💩', '#feca57');
+                    updateUI();
+
+                    // 检查胜利
+                    if (poops.every(p => p.collected)) {
+                        gameOver(true);
+                    }
+                }
+            }
+
+            // 血包
+            for (let hp of healthPacks) {
+                if (hp.collected) continue;
+                hp.bobOffset += 0.05;
+                const dist = Math.hypot(player.x + player.width / 2 - hp.x, player.y + player.height / 2 - hp.y);
+                if (dist < hp.radius + player.width / 2) {
+                    hp.collected = true;
+                    player.health = Math.min(MAX_HEALTH, player.health + 40);
+                    spawnParticles(hp.x, hp.y, '#ff69b4', 10);
+                    spawnFloatText(hp.x, hp.y - 20, '+40 ❤️', '#ff69b4');
+                    updateUI();
+                }
+            }
+
+            // 尖刺
+            const spikeTiles = [];
+            for (let y = 0; y < MAP_HEIGHT; y++) {
+                for (let x = 0; x < MAP_WIDTH; x++) {
+                    if (map[y][x] === TILE_SPIKE_UP || map[y][x] === TILE_SPIKE_DOWN) {
+                        spikeTiles.push({ x: x * TILE, y: y * TILE, type: map[y][x] });
+                    }
+                }
+            }
+            for (let spike of spikeTiles) {
+                const spikeHitbox = {
+                    x: spike.x + 8,
+                    y: spike.type === TILE_SPIKE_UP ? spike.y + 20 : spike.y,
+                    width: 24,
+                    height: 20
+                };
+                if (rectIntersect(player, spikeHitbox) && player.invincible <= 0) {
+                    const knockDir = player.x + player.width / 2 < spike.x + TILE / 2 ? -1 : 1;
+                    damagePlayer(30, knockDir * KNOCKBACK, -7);
+                }
+            }
+        }
+
+        // 更新粒子
+        function updateParticles() {
+            for (let i = particles.length - 1; i >= 0; i--) {
+                const p = particles[i];
+                p.x += p.vx;
+                p.y += p.vy;
+                p.vy += 0.3;
+                p.life--;
+                if (p.life <= 0) particles.splice(i, 1);
+            }
+
+            for (let i = floatTexts.length - 1; i >= 0; i--) {
+                const t = floatTexts[i];
+                t.y += t.vy;
+                t.life--;
+                if (t.life <= 0) floatTexts.splice(i, 1);
+            }
+        }
+
+        // 更新相机
+        function updateCamera() {
+            const targetX = player.x + player.width / 2 - canvas.width / 2;
+            const targetY = player.y + player.height / 2 - canvas.height / 2;
+            camera.x += (targetX - camera.x) * 0.1;
+            camera.y += (targetY - camera.y) * 0.1;
+            camera.x = Math.max(0, Math.min(camera.x, MAP_WIDTH * TILE - canvas.width));
+            camera.y = Math.max(0, Math.min(camera.y, MAP_HEIGHT * TILE - canvas.height));
+        }
+
+        // 绘制函数
+        function drawRoundedRect(ctx, x, y, w, h, r) {
+            ctx.beginPath();
+            ctx.moveTo(x + r, y);
+            ctx.lineTo(x + w - r, y);
+            ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+            ctx.lineTo(x + w, y + h - r);
+            ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+            ctx.lineTo(x + r, y + h);
+            ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+            ctx.lineTo(x, y + r);
+            ctx.quadraticCurveTo(x, y, x + r, y);
+            ctx.closePath();
+        }
+
+        function drawMap() {
+            const startCol = Math.floor(camera.x / TILE);
+            const endCol = startCol + Math.ceil(canvas.width / TILE) + 1;
+            const startRow = Math.floor(camera.y / TILE);
+            const endRow = startRow + Math.ceil(canvas.height / TILE) + 1;
+
+            for (let y = startRow; y <= endRow; y++) {
+                for (let x = startCol; x <= endCol; x++) {
+                    if (x < 0 || x >= MAP_WIDTH || y < 0 || y >= MAP_HEIGHT) continue;
+                    const type = map[y][x];
+                    const px = x * TILE - camera.x;
+                    const py = y * TILE - camera.y;
+
+                    if (type === TILE_GROUND) {
+                        // 草地顶部
+                        ctx.fillStyle = '#2ecc71';
+                        ctx.fillRect(px, py, TILE, TILE);
+                        ctx.fillStyle = '#27ae60';
+                        ctx.fillRect(px, py + 8, TILE, TILE - 8);
+                        // 草地纹理
+                        ctx.fillStyle = '#1e8449';
+                        ctx.fillRect(px + 4, py + 4, 4, 4);
+                        ctx.fillRect(px + 20, py + 6, 4, 4);
+                        ctx.fillRect(px + 30, py + 12, 4, 4);
+                    } else if (type === TILE_PLATFORM) {
+                        ctx.fillStyle = '#e67e22';
+                        ctx.fillRect(px, py, TILE, 10);
+                        ctx.fillStyle = '#d35400';
+                        ctx.fillRect(px, py + 10, TILE, TILE - 10);
+                    } else if (type === TILE_SPIKE_UP) {
+                        ctx.fillStyle = '#95a5a6';
+                        ctx.beginPath();
+                        ctx.moveTo(px + 4, py + TILE);
+                        ctx.lineTo(px + TILE / 2, py + 8);
+                        ctx.lineTo(px + TILE - 4, py + TILE);
+                        ctx.closePath();
+                        ctx.fill();
+                        ctx.fillStyle = '#e74c3c';
+                        ctx.beginPath();
+                        ctx.moveTo(px + 10, py + TILE);
+                        ctx.lineTo(px + TILE / 2, py + 16);
+                        ctx.lineTo(px + TILE - 10, py + TILE);
+                        ctx.closePath();
+                        ctx.fill();
+                    } else if (type === TILE_SPIKE_DOWN) {
+                        ctx.fillStyle = '#95a5a6';
+                        ctx.beginPath();
+                        ctx.moveTo(px + 4, py);
+                        ctx.lineTo(px + TILE / 2, py + TILE - 8);
+                        ctx.lineTo(px + TILE - 4, py);
+                        ctx.closePath();
+                        ctx.fill();
+                    }
+                }
+            }
+        }
+
+        function drawPlayer() {
+            const px = player.x - camera.x;
+            const py = player.y - camera.y;
+
+            // 无敌闪烁
+            if (player.invincible > 0 && Math.floor(player.invincible / 4) % 2 === 0) {
+                ctx.globalAlpha = 0.5;
+            }
+
+            // 身体（糖豆人风格）
+            ctx.fillStyle = player.color;
+            drawRoundedRect(ctx, px, py, player.width, player.height, 12);
+            ctx.fill();
+
+            // 肚子高光
+            ctx.fillStyle = 'rgba(255,255,255,0.3)';
+            ctx.beginPath();
+            ctx.ellipse(px + player.width / 2, py + player.height / 2, 8, 10, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            // 眼睛
+            ctx.fillStyle = 'white';
+            const eyeOffsetX = player.facing === 1 ? 16 : 6;
+            ctx.beginPath();
+            ctx.arc(px + eyeOffsetX, py + 10, 5, 0, Math.PI * 2);
+            ctx.arc(px + eyeOffsetX + 10, py + 10, 5, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.fillStyle = 'black';
+            const pupilOffsetX = player.facing === 1 ? 18 : 4;
+            ctx.beginPath();
+            ctx.arc(px + pupilOffsetX, py + 10, 2.5, 0, Math.PI * 2);
+            ctx.arc(px + pupilOffsetX + 10, py + 10, 2.5, 0, Math.PI * 2);
+            ctx.fill();
+
+            // 嘴巴
+            ctx.strokeStyle = '#1a1a2e';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            const mouthX = player.facing === 1 ? px + 10 : px + 6;
+            ctx.arc(mouthX + 8, py + 20, 5, 0, Math.PI);
+            ctx.stroke();
+
+            // 手臂
+            ctx.strokeStyle = player.color;
+            ctx.lineWidth = 6;
+            ctx.lineCap = 'round';
+            ctx.beginPath();
+            const armSwing = Math.sin(player.animTimer * 0.2) * 5;
+            ctx.moveTo(px + player.width / 2, py + 20);
+            ctx.lineTo(px + player.width / 2 + armSwing, py + 30);
+            ctx.stroke();
+
+            // 腿
+            ctx.beginPath();
+            const legSwing = Math.cos(player.animTimer * 0.2) * 5;
+            ctx.moveTo(px + 8, py + player.height);
+            ctx.lineTo(px + 8 + legSwing, py + player.height + 6);
+            ctx.moveTo(px + player.width - 8, py + player.height);
+            ctx.lineTo(px + player.width - 8 - legSwing, py + player.height + 6);
+            ctx.stroke();
+
+            ctx.globalAlpha = 1;
+
+            // 姓名标签
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+            drawRoundedRect(ctx, px + player.width / 2 - 24, py - 28, 48, 20, 8);
+            ctx.fill();
+            ctx.fillStyle = '#fff';
+            ctx.font = 'bold 13px "Microsoft YaHei", sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('龙龙', px + player.width / 2, py - 18);
+        }
+
+        function drawEnemies() {
+            for (let enemy of enemies) {
+                const ex = enemy.x - camera.x;
+                const ey = enemy.y - camera.y;
+
+                if (enemy.type === 'ground') {
+                    // 史莱姆
+                    const squash = 1 + Math.sin(enemy.animTimer * 0.15) * 0.1;
+                    ctx.fillStyle = '#9b59b6';
+                    ctx.beginPath();
+                    ctx.ellipse(ex + enemy.width / 2, ey + enemy.height, enemy.width / 2 * squash, enemy.height * squash, 0, Math.PI, 0);
+                    ctx.fill();
+
+                    // 眼睛
+                    ctx.fillStyle = 'white';
+                    ctx.beginPath();
+                    ctx.arc(ex + 8, ey + 6, 4, 0, Math.PI * 2);
+                    ctx.arc(ex + enemy.width - 8, ey + 6, 4, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.fillStyle = 'red';
+                    ctx.beginPath();
+                    ctx.arc(ex + 8, ey + 6, 1.5, 0, Math.PI * 2);
+                    ctx.arc(ex + enemy.width - 8, ey + 6, 1.5, 0, Math.PI * 2);
+                    ctx.fill();
+                } else {
+                    // 飞行蝙蝠
+                    ctx.fillStyle = '#34495e';
+                    ctx.beginPath();
+                    ctx.ellipse(ex + enemy.width / 2, ey + enemy.height / 2, enemy.width / 2, enemy.height / 2.5, 0, 0, Math.PI * 2);
+                    ctx.fill();
+
+                    // 翅膀
+                    const wingFlap = Math.sin(enemy.animTimer * 0.3) * 10;
+                    ctx.fillStyle = '#2c3e50';
+                    ctx.beginPath();
+                    ctx.moveTo(ex + enemy.width / 2, ey + enemy.height / 2);
+                    ctx.lineTo(ex - 5, ey + wingFlap);
+                    ctx.lineTo(ex + 5, ey + enemy.height / 2);
+                    ctx.fill();
+                    ctx.beginPath();
+                    ctx.moveTo(ex + enemy.width / 2, ey + enemy.height / 2);
+                    ctx.lineTo(ex + enemy.width + 5, ey + wingFlap);
+                    ctx.lineTo(ex + enemy.width - 5, ey + enemy.height / 2);
+                    ctx.fill();
+
+                    // 眼睛
+                    ctx.fillStyle = 'yellow';
+                    ctx.beginPath();
+                    ctx.arc(ex + enemy.width / 2 - 4, ey + enemy.height / 2 - 2, 3, 0, Math.PI * 2);
+                    ctx.arc(ex + enemy.width / 2 + 4, ey + enemy.height / 2 - 2, 3, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            }
+        }
+
+        function drawSaws() {
+            for (let saw of saws) {
+                const sx = saw.x - camera.x;
+                const sy = saw.y - camera.y;
+
+                // 锯片
+                ctx.save();
+                ctx.translate(sx, sy);
+                ctx.rotate(saw.angle);
+
+                ctx.fillStyle = '#7f8c8d';
+                ctx.beginPath();
+                ctx.arc(0, 0, saw.radius, 0, Math.PI * 2);
+                ctx.fill();
+
+                // 锯齿
+                ctx.fillStyle = '#bdc3c7';
+                for (let i = 0; i < 8; i++) {
+                    ctx.rotate(Math.PI / 4);
+                    ctx.beginPath();
+                    ctx.moveTo(0, -saw.radius);
+                    ctx.lineTo(6, -saw.radius - 8);
+                    ctx.lineTo(-6, -saw.radius - 8);
+                    ctx.closePath();
+                    ctx.fill();
+                }
+
+                ctx.fillStyle = '#e74c3c';
+                ctx.beginPath();
+                ctx.arc(0, 0, saw.radius / 2.5, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.restore();
+            }
+        }
+
+        function drawCollectibles() {
+            for (let poop of poops) {
+                if (poop.collected) continue;
+                const bob = Math.sin(poop.bobOffset) * 4;
+                const px = poop.x - camera.x;
+                const py = poop.y - camera.y + bob;
+
+                // 屎粑粑表情
+                ctx.font = '28px Arial';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText('💩', px, py);
+
+                // 光晕
+                ctx.strokeStyle = 'rgba(254, 202, 87, 0.4)';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.arc(px, py, 18, 0, Math.PI * 2);
+                ctx.stroke();
+            }
+
+            for (let hp of healthPacks) {
+                if (hp.collected) continue;
+                const bob = Math.sin(hp.bobOffset) * 4;
+                const px = hp.x - camera.x;
+                const py = hp.y - camera.y + bob;
+
+                ctx.font = '26px Arial';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText('💖', px, py);
+            }
+        }
+
+        function drawParticles() {
+            for (let p of particles) {
+                ctx.globalAlpha = p.life / 30;
+                ctx.fillStyle = p.color;
+                ctx.beginPath();
+                ctx.arc(p.x - camera.x, p.y - camera.y, p.size, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            ctx.globalAlpha = 1;
+
+            for (let t of floatTexts) {
+                ctx.globalAlpha = t.life / 60;
+                ctx.fillStyle = t.color;
+                ctx.font = 'bold 18px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText(t.text, t.x - camera.x, t.y - camera.y);
+            }
+            ctx.globalAlpha = 1;
+        }
+
+        function drawBackground() {
+            // 天空渐变
+            const grad = ctx.createLinearGradient(0, 0, 0, canvas.height);
+            grad.addColorStop(0, '#87CEEB');
+            grad.addColorStop(1, '#E0F7FA');
+            ctx.fillStyle = grad;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // 云朵
+            ctx.fillStyle = 'rgba(255,255,255,0.6)';
+            const cloudOffset = camera.x * 0.1;
+            for (let i = 0; i < 8; i++) {
+                const cx = ((i * 250) - cloudOffset) % (canvas.width + 200) - 100;
+                const cy = 50 + (i * 37) % 80;
+                ctx.beginPath();
+                ctx.arc(cx, cy, 30, 0, Math.PI * 2);
+                ctx.arc(cx + 30, cy - 10, 35, 0, Math.PI * 2);
+                ctx.arc(cx + 60, cy, 30, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+
+        function drawMiniMap() {
+            const scale = 3;
+            const mw = MAP_WIDTH * scale;
+            const mh = MAP_HEIGHT * scale;
+            const mx = canvas.width - mw - 10;
+            const my = 50;
+
+            ctx.fillStyle = 'rgba(0,0,0,0.5)';
+            ctx.fillRect(mx, my, mw, mh);
+
+            for (let y = 0; y < MAP_HEIGHT; y++) {
+                for (let x = 0; x < MAP_WIDTH; x++) {
+                    const type = map[y][x];
+                    if (type === TILE_GROUND || type === TILE_PLATFORM) {
+                        ctx.fillStyle = '#2ecc71';
+                        ctx.fillRect(mx + x * scale, my + y * scale, scale, scale);
+                    }
+                }
+            }
+
+            // 玩家位置
+            ctx.fillStyle = '#ff0000';
+            ctx.fillRect(mx + (player.x / TILE) * scale - 1, my + (player.y / TILE) * scale - 1, 3, 3);
+        }
+
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            drawBackground();
+            drawMap();
+            drawCollectibles();
+            drawSaws();
+            drawEnemies();
+            drawPlayer();
+            drawParticles();
+            drawMiniMap();
+        }
+
+        function gameLoop() {
+            if (gameState === 'playing') {
+                updatePlayer();
+                updateEnemies();
+                updateSaws();
+                updateCollectiblesAndTraps();
+                updateParticles();
+                updateCamera();
+            }
+            draw();
+            requestAnimationFrame(gameLoop);
+        }
+
+        // 初始化
+        createMap();
+        initEntities();
+        resetPlayer();
+        updateUI();
+        gameLoop();
+    </script>
+</body>
+</html>
