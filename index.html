@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>陈子龙找屎粑粑</title>
+    <title>陈籽龙找屎粑粑</title>
     <style>
         * {
             margin: 0;
@@ -134,7 +134,7 @@
     </style>
 </head>
 <body>
-    <h1>🎮 陈子龙找屎粑粑 🎮</h1>
+    <h1>🎮 陈籽龙找屎粑粑 🎮</h1>
     <div id="gameContainer">
         <canvas id="gameCanvas" width="960" height="540"></canvas>
         <div id="ui">
@@ -149,9 +149,9 @@
         <div id="overlay">
             <h2 id="overlayTitle">陈子龙找屎粑粑</h2>
             <p id="overlayText">
-                帮助陈子龙在复杂的地图中找到所有的屎粑粑！<br>
+                帮助陈籽龙在复杂的地图中找到所有的屎粑粑！<br>
                 小心陷阱和敌人，收集血包回复生命。<br>
-                陈子龙有 3 条命，找到所有屎粑粑即可通关！
+                陈籽龙有 3 条命，找到所有屎粑粑即可包餐！
             </p>
             <button class="btn" id="startBtn">开始游戏</button>
         </div>
@@ -474,8 +474,8 @@
             gameState = won ? 'won' : 'lost';
             overlayTitle.textContent = won ? '🎉 通关成功！' : '💀 游戏结束';
             overlayText.innerHTML = won
-                ? `太棒了！陈子龙找到了所有的 💩 屎粑粑！<br>剩余生命：${player.lives} 条`
-                : '陈子龙的生命耗尽了……再试一次吧！';
+                ? `太棒了！陈籽龙找到了所有的 💩 屎粑粑！<br>剩余生命：${player.lives} 条`
+                : '陈籽龙的燃尽了……再试一次吧！';
             startBtn.textContent = '重新开始';
             overlay.classList.remove('hidden');
         }
